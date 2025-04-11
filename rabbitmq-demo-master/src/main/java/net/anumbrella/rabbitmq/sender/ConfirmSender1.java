@@ -7,10 +7,15 @@ import org.springframework.amqp.core.AmqpTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 
 /**
  * 这是java原生类支持RabbitMQ，直接运行该类
+ *
+ * 不能像传统的“手动确认”，就是不能代码上处理，但是可以通过addConfirmListener和waitForConfirms得知是否接收成功
  */
 public class ConfirmSender1 {
 
@@ -53,6 +58,11 @@ public class ConfirmSender1 {
             @Override
             public void handleAck(long deliveryTag, boolean multiple) throws IOException {
                 System.out.println("ack: deliveryTag = " + deliveryTag + " multiple: " + multiple);
+//                try {
+//                    Thread.sleep(2000);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
             }
         });
 
@@ -61,22 +71,35 @@ public class ConfirmSender1 {
         for (int i = 0; i < 5; i++) {
             //第一个参数是exchangeName(默认情况下代理服务器端是存在一个""名字的exchange的,
             //因此如果不创建exchange的话我们可以直接将该参数设置成"",如果创建了exchange的话
-            //我们需要将该参数设置成创建的exchange的名字),第二个参数是路由键
-            channel.basicPublish("", QUEUE_NAME, MessageProperties.PERSISTENT_BASIC, (" Confirm模式， 第" + (i + 1) + "条消息").getBytes());
+            //我们需要将该参数设置成创建的exchange的名字),第二个参数是路由键;
+            // 使用 BasicProperties.Builder 来构建消息属性
+            AMQP.BasicProperties.Builder builder = new AMQP.BasicProperties.Builder();
+            builder.deliveryMode(2); // 设置消息为持久化
+            UUID messageId = UUID.randomUUID();
+            builder.messageId(messageId.toString());
+
+            AMQP.BasicProperties properties = builder.build();
+
+            channel.basicPublish("", QUEUE_NAME, properties, (" Confirm， " + (i + 1) + "message").getBytes());
+            try {
+                if (channel.waitForConfirms(1000)) {
+                    System.out.println("send success! ");
+                } else {
+                    // 进行消息重发
+                }
+            } catch (Exception e) {
+                System.out.println("send failed！" + e.getMessage());
+            }
+
         }
 
-
-        if (channel.waitForConfirms()) {
-            System.out.println("发送成功");
-        } else {
-            // 进行消息重发
-        }
 
         System.out.println("执行waitForConfirms耗费时间: " + (System.currentTimeMillis() - start) + "ms");
 
         // 关闭频道和连接
         channel.close();
         connection.close();
+        Thread.sleep(1000000);
     }
 
 }

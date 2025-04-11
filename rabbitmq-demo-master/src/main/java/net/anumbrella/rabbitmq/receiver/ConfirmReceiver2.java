@@ -11,7 +11,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * 这是java原生类支持RabbitMQ，直接运行该类
  */
-public class ConfirmReceiver1 {
+public class ConfirmReceiver2 {
 
     private final static String QUEUE_NAME = "confirm";
 
@@ -46,38 +46,7 @@ public class ConfirmReceiver1 {
                 System.out.println(" ConfirmReceiver1  : " + message);
                 System.out.println(" ConfirmReceiver1 Done! at " + time.format(new Date()));
 
-                if (deliveryTag == 2 || deliveryTag == 3) {
-                    System.out.println("deliveryTag=" + deliveryTag);
-                    new Thread(() ->{
-                        if (deliveryTag == 2) {
-                            new Thread(() ->{
-                                try {
-                                    Thread.sleep(2000);
-                                    try {
-                                        channel.basicNack(deliveryTag,false,true);
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                            }).start();
-                        } else {
-                            try {
-                                channel.basicNack(deliveryTag,false,true);
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }).start();
-                } else {
-
-                    if (deliveryTag == 4) {
-
-                    } else {
-                        channel.basicAck(deliveryTag,false);
-                    }
-                }
+                channel.basicAck(deliveryTag,false);
 
             }
         };
